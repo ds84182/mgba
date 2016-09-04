@@ -194,6 +194,10 @@ void GBAReset(struct ARMCore* cpu) {
 	gba->haltPending = false;
 	gba->idleDetectionStep = 0;
 	gba->idleDetectionFailures = 0;
+
+	if (gba->scriptingInterface) {
+		gba->scriptingInterface->onReset(gba->scriptingInterface);
+	}
 }
 
 void GBASkipBIOS(struct GBA* gba) {
@@ -505,6 +509,7 @@ bool GBALoadROM(struct GBA* gba, struct VFile* vf) {
 	GBAHardwareInit(&gba->memory.hw, &((uint16_t*) gba->memory.rom)[GPIO_REG_DATA >> 1]);
 	GBAVFameDetect(&gba->memory.vfame, gba->memory.rom, gba->memory.romSize);
 	// TODO: error check
+
 	return true;
 }
 
@@ -663,6 +668,9 @@ void GBATestIRQ(struct ARMCore* cpu) {
 void GBAHalt(struct GBA* gba) {
 	gba->cpu->nextEvent = gba->cpu->cycles;
 	gba->cpu->halted = 1;
+	if (gba->scriptingInterface) {
+		gba->scriptingInterface->onHalt(gba->scriptingInterface);
+	}
 }
 
 void GBAStop(struct GBA* gba) {
@@ -837,6 +845,10 @@ void GBAFrameEnded(struct GBA* gba) {
 
 	if (gba->rr) {
 		gba->rr->nextFrame(gba->rr);
+	}
+
+	if (gba->scriptingInterface) {
+		gba->scriptingInterface->onFrameEnd(gba->scriptingInterface);
 	}
 
 	if (gba->cpu->components && gba->cpu->components[CPU_COMPONENT_CHEAT_DEVICE]) {

@@ -7,6 +7,7 @@
 
 #include "core/core.h"
 #include "core/log.h"
+#include "core/scripting.h"
 #include "arm/debugger/debugger.h"
 #include "gba/cheats.h"
 #include "gba/gba.h"
@@ -34,6 +35,7 @@ struct GBACore {
 	const struct Configuration* overrides;
 	struct mDebuggerPlatform* debuggerPlatform;
 	struct mCheatDevice* cheatDevice;
+	struct mScriptingInterface* scriptingInterface;
 };
 
 static bool _GBACoreInit(struct mCore* core) {
@@ -52,8 +54,10 @@ static bool _GBACoreInit(struct mCore* core) {
 	gbacore->overrides = NULL;
 	gbacore->debuggerPlatform = NULL;
 	gbacore->cheatDevice = NULL;
+	gbacore->scriptingInterface = mScriptingInit(core, "lua"); //TODO: Allow some special awesome magic code to change what interface we use
 
 	GBACreate(gba);
+	gba->scriptingInterface = gbacore->scriptingInterface;
 	// TODO: Restore cheats
 	memset(gbacore->components, 0, sizeof(gbacore->components));
 	ARMSetComponents(cpu, &gba->d, CPU_COMPONENT_MAX, gbacore->components);
@@ -73,7 +77,7 @@ static bool _GBACoreInit(struct mCore* core) {
 #if !defined(MINIMAL_CORE) || MINIMAL_CORE < 2
 	mDirectorySetInit(&core->dirs);
 #endif
-	
+
 	return true;
 }
 
@@ -196,7 +200,12 @@ static void _GBACoreSetAVStream(struct mCore* core, struct mAVStream* stream) {
 }
 
 static bool _GBACoreLoadROM(struct mCore* core, struct VFile* vf) {
-	return GBALoadROM(core->board, vf);
+	struct GBACore* gbacore = (struct GBACore*) core;
+	bool success = GBALoadROM(core->board, vf);
+	if (success && gbacore->scriptingInterface) {
+		gbacore->scriptingInterface->loadScript(gbacore->scriptingInterface, "assert(loadfile('test.lua'))()"); //FIXME: this is still testing
+	}
+	return success;
 }
 
 static bool _GBACoreLoadBIOS(struct mCore* core, struct VFile* vf, int type) {
@@ -262,6 +271,7 @@ static void _GBACoreReset(struct mCore* core) {
 }
 
 static void _GBACoreRunFrame(struct mCore* core) {
+	struct GBACore* gbacore = (struct GBACore*) core;
 	struct GBA* gba = core->board;
 	int32_t frameCounter = gba->video.frameCounter;
 	while (gba->video.frameCounter == frameCounter) {

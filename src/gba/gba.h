@@ -16,6 +16,7 @@
 #include "gba/video.h"
 #include "gba/audio.h"
 #include "gba/sio.h"
+#include "core/scripting.h"
 
 extern const uint32_t GBA_ARM7TDMI_FREQUENCY;
 
@@ -81,6 +82,7 @@ struct GBA {
 	struct mCoreSync* sync;
 
 	struct ARMDebugger* debugger;
+	struct mScriptingInterface* scriptingInterface;
 
 	uint32_t bus;
 	int performingDMA;

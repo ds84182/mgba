@@ -12,6 +12,7 @@ set(USE_FFMPEG ON CACHE BOOL "Whether or not to enable FFmpeg support")
 set(USE_ZLIB ON CACHE BOOL "Whether or not to enable zlib support")
 set(USE_MINIZIP ON CACHE BOOL "Whether or not to enable external minizip support")
 set(USE_PNG ON CACHE BOOL "Whether or not to enable PNG support")
+set(USE_LUAJIT ON CACHE BOOL "Whether or not to enable LuaJIT scripting support")
 set(USE_LIBZIP ON CACHE BOOL "Whether or not to enable LIBZIP support")
 set(USE_MAGICK ON CACHE BOOL "Whether or not to enable ImageMagick support")
 set(M_CORE_GBA ON CACHE BOOL "Build Game Boy Advance core")
@@ -49,6 +50,7 @@ file(GLOB THIRD_PARTY_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/third-party/inih/*.c)
 set(CLI_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/feature/commandline.c)
 set(CORE_VFS_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src/util/vfs/vfs-mem.c)
 set(VFS_SRC)
+set(CORE_SI_SRC)
 source_group("ARM core" FILES ${ARM_SRC})
 source_group("LR35902 core" FILES ${LR35902_SRC})
 source_group("GBA board" FILES ${GBA_SRC} ${GBA_RENDERER_SRC} ${SIO_SRC})
@@ -309,6 +311,7 @@ find_feature(USE_FFMPEG "libavcodec;libavformat;libavresample;libavutil;libswsca
 find_feature(USE_ZLIB "ZLIB")
 find_feature(USE_MINIZIP "minizip")
 find_feature(USE_PNG "PNG")
+find_feature(USE_LUAJIT "luajit")
 find_feature(USE_LIBZIP "libzip")
 find_feature(USE_MAGICK "MagickWand")
 find_feature(USE_EPOXY "epoxy")
@@ -431,6 +434,16 @@ if(USE_PNG)
 	set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS},libpng12-0")
 endif()
 
+if(USE_LUAJIT)
+	list(APPEND FEATURES LUAJIT)
+	include_directories(AFTER ${LUAJIT_INCLUDE_DIRS})
+	list(APPEND DEPENDENCY_LIB ${LUAJIT_LIBRARIES})
+	set(CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS},libluajit-5.1-2")
+	set(LUA_SI_SRC
+		${CMAKE_CURRENT_SOURCE_DIR}/src/core/scripting/lua_interface.c)
+	list(APPEND CORE_SI_SRC ${LUA_SI_SRC})
+endif()
+
 if(USE_LIBZIP)
 	include_directories(AFTER ${LIBZIP_INCLUDE_DIRS})
 	link_directories(${LIBZIP_LIBRARY_DIRS})
@@ -516,7 +529,7 @@ endif()
 
 if(M_CORE_GBA)
 	add_definitions(-DM_CORE_GBA)
-	list(APPEND CORE_SRC 
+	list(APPEND CORE_SRC
 		${ARM_SRC}
 		${CMAKE_CURRENT_SOURCE_DIR}/src/arm/debugger/debugger.c
 		${CMAKE_CURRENT_SOURCE_DIR}/src/arm/debugger/memory-debugger.c
@@ -549,6 +562,7 @@ endif()
 list(APPEND CORE_SRC
 	${UTIL_SRC}
 	${CORE_VFS_SRC}
+	${CORE_SI_SRC}
 	${DEBUGGER_SRC}
 	${OS_SRC}
 	${THIRD_PARTY_SRC})
@@ -751,6 +765,7 @@ if(NOT QUIET)
 	message(STATUS "	ZIP support: ${SUMMARY_ZIP}")
 	message(STATUS "	7-Zip support: ${USE_LZMA}")
 	message(STATUS "	OpenGL support: ${SUMMARY_GL}")
+	message(STATUS "	Lua scripting support: ${USE_LUAJIT}")
 	message(STATUS "Frontends:")
 	message(STATUS "	Qt: ${BUILD_QT}")
 	message(STATUS "	SDL (${SDL_VERSION}): ${BUILD_SDL}")
